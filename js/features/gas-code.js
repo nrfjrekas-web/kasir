@@ -98,6 +98,9 @@ function hash_(pw, salt) {
 function saveUser_(u, p) {
   if (!p.username || !p.full_name || !p.role_id) throw new Error('Data pengguna tidak lengkap');
   const ex = all_('Users').find(x => x.username === p.username);
+  const PRIV = ['R-SUPER', 'R-OWNER', 'R-ADMIN'];
+  if (u.perms && !u.perms.includes('*') && (PRIV.includes(p.role_id) || (ex && PRIV.includes(ex.role_id)))) throw new Error('Tidak boleh mengelola akun dengan role ini');
+  if (p.branch_id !== undefined && p.branch_id && !all_('Branches').find(b => b.branch_id === p.branch_id)) throw new Error('Cabang tidak ditemukan');
   const salt = Utilities.getUuid().slice(0, 12);
   const row = ex || { user_id: id_('USR'), created_at: iso_(), status: 'active' };
   ['full_name', 'email', 'phone', 'role_id', 'branch_id', 'allowed_branch_ids', 'status'].forEach(k => { if (p[k] !== undefined) row[k] = p[k]; });
@@ -107,6 +110,25 @@ function saveUser_(u, p) {
   ex ? set_('Users', row) : add_('Users', row);
   log_(u, ex ? 'update' : 'create', 'Users', row.user_id, null, { username: row.username, role_id: row.role_id });
   return { user_id: row.user_id };
+}
+function listUsers_(u) {
+  const RN = {}; all_('Roles').forEach(r => RN[r.role_id] = r.role_name);
+  return all_('Users').map(x => ({ user_id: x.user_id, username: x.username, full_name: x.full_name, role_id: x.role_id, role: RN[x.role_id] || '',
+    branch_id: x.branch_id, allowed: String(x.allowed_branch_ids || x.branch_id), status: x.status, last_login: x.last_login }));
+}
+function listBranches_(u) {
+  return all_('Branches').filter(b => b.status === 'active').map(b => ({ branch_id: b.branch_id, branch_name: b.branch_name, is_main: String(b.is_main).toLowerCase() === 'true' }));
+}
+function changePassword_(u, p) {
+  const x = all_('Users').find(y => y.user_id === u.user_id);
+  if (!x) throw new Error('Akun tidak ditemukan');
+  const old = String(x.password_hash).split('$');
+  if (hash_(p.old_password || '', old[0]) !== old[1]) throw new Error('Password lama salah');
+  if (!p.new_password || p.new_password.length < 8) throw new Error('Password baru minimal 8 karakter');
+  const salt = Utilities.getUuid().slice(0, 12);
+  x.password_hash = salt + '$' + hash_(p.new_password, salt); x.updated_at = iso_(); set_('Users', x);
+  log_(u, 'password', 'Users', x.user_id);
+  return {};
 }
 function login_(p) {
   const c = CacheService.getScriptCache(), k = 'try_' + p.username, n = +c.get(k) || 0;
@@ -312,6 +334,7 @@ const ACT = {
   adjustStock: ['stock.write', adjustStock_], createTransaction: ['sale.create', createTx_], cancelTransaction: ['void', voidTx_],
   syncOfflineTransactions: ['sale.create', sync_], createPurchase: ['purchase.write', createPurchase_], receivePurchase: ['purchase.write', receivePurchase_],
   getReport: ['report.view', report_], saveUser: ['user.manage', saveUser_],
+  getUsers: ['user.manage', listUsers_], getBranches: ['user.manage', listBranches_], changePassword: [null, changePassword_],
   getAuditLogs: ['audit.view', (u, p) => all_('Audit_Logs').slice(-(+p.limit || 100)).reverse().map(x => { delete x._row; return x; })]
 };
 function api(token, action, p) {
