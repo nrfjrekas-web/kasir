@@ -1,2 +1,3 @@
 /* Mulai aplikasi */
+applyTheme();
 boot();
