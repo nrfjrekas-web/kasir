@@ -1,1 +1,10 @@
-
+// ---- Laporan ----
+async function lap(){const t=new Date().toISOString().slice(0,10);
+ $('#v').innerHTML=`<div class="c row"><input type="date" id="fr" value="${t}"><input type="date" id="to" value="${t}"><select id="mt"><option value="">Semua metode</option><option>cash</option><option>transfer</option><option>qris</option><option>card</option></select><button class="p" id="ok">Tampilkan</button></div><div id="rs"></div>`;
+ const go=async()=>{try{const r=await call('getReport',{from:$('#fr').value,to:$('#to').value,method:$('#mt').value,branch_id:S.br});
+  $('#rs').innerHTML=`<div class="g" style="margin-top:12px"><div class="c"><h3>Ringkasan</h3><table><tr><td>Transaksi</td><td class="r">${r.count}</td></tr><tr><td>Omzet</td><td class="r">${R(r.omzet)}</td></tr><tr><td>Penjualan bersih</td><td class="r">${R(r.net)}</td></tr><tr><td>HPP</td><td class="r">${R(r.cogs)}</td></tr><tr><td><b>Laba kotor</b></td><td class="r"><b>${R(r.gross_profit)}</b></td></tr></table>
+  <h4>Per metode</h4><table>${Object.entries(r.byMethod).map(([k,v])=>`<tr><td>${E(k)}</td><td class="r">${R(v)}</td></tr>`).join('')}</table><h4>Per hari</h4><table>${Object.entries(r.byDay).map(([k,v])=>`<tr><td>${k}</td><td class="r">${R(v)}</td></tr>`).join('')}</table></div>
+  <div class="c"><h3>Terlaris</h3><table>${r.top.map(x=>`<tr><td>${E(x.name)}</td><td>${x.qty}</td><td class="r">${R(x.total)}</td></tr>`).join('')}</table><h4>Stok menipis</h4><table>${r.low.map(x=>`<tr><td>${E(x.product)}</td><td>${x.qty}/${x.min}</td></tr>`).join('')||'<tr><td class="m">Aman</td></tr>'}</table></div></div>
+  <div class="c sc" style="margin-top:12px"><h3>Transaksi</h3><table>${r.tx.map(x=>`<tr><td>${E(x.invoice_number)}</td><td>${new Date(x.date).toLocaleString('id-ID')}</td><td class="r">${R(x.grand_total)}</td><td>${can('void')?`<button class="d" data-v="${E(x.transaction_id)}">Void</button>`:''}</td></tr>`).join('')}</table></div>`;
+  document.querySelectorAll('[data-v]').forEach(b=>b.onclick=async()=>{const why=prompt('Alasan void:');if(!why)return;try{await call('cancelTransaction',{transaction_id:b.dataset.v,reason:why});go()}catch(e){toast(e.message)}})}catch(e){toast(e.message)}};
+ $('#ok').onclick=go;go()}
