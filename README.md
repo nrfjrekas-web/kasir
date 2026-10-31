@@ -6,9 +6,9 @@ POS multi-cabang. Frontend statis tanpa proses build, database Google Spreadshee
 ```
 index.html            markup + urutan pemuatan skrip
 css/style.css         seluruh gaya (termasuk cetak struk)
-js/core/              config (status & URL API), util (helper), store (panggilan API, IndexedDB),
-                      auth (izin, login, boot), nav (kerangka & tab menurut izin)
-js/views/             satu berkas per halaman: pos, produk, stok, laporan, server
+js/core/              config (URL API), util (helper, pengaturan perangkat), ui (ikon, toast, dialog, keadaan kosong/galat),
+                      store (panggilan API, IndexedDB), auth (izin, jenis akun, login, boot), nav (sidebar/tab bar menurut izin)
+js/views/             satu berkas per halaman: pos, produk, stok, laporan, setelan (Pengaturan)
 js/features/          print (struk), sync (antrean offline, salin kode), gas-code (salinan backend)
 js/main.js            start aplikasi
 backend/Code.gs       backend Apps Script (24 sheet, auth, stok, transaksi, pembelian, laporan, sinkron)
@@ -21,11 +21,19 @@ tools/smoke.js        uji asap tanpa browser/Google: node tools/smoke.js
 2. Set zona waktu proyek `Asia/Jakarta`. Jalankan `initializeDatabase` sekali; username `admin` dan password awal ada di log eksekusi. Segera ganti.
 3. Deploy > Aplikasi web: jalankan sebagai Saya, akses Siapa saja. Salin URL `/exec`.
 4. Pemilik mengisi `API_URL` di `js/core/config.js` dengan URL `/exec`, lalu mengunggah aplikasi. Semua perangkat langsung tersambung dan layar login hanya meminta username dan password. Alternatif: biarkan `API_URL` kosong; saat pertama dibuka perangkat menampilkan layar "Sambungkan ke server" untuk diisi pemilik sekali per perangkat.
-5. URL dan kode backend bisa diubah/disalin lagi lewat tab **Server** (izin `server.setting`: Super Admin dan Owner). Database yang sudah terlanjur dibuat: tambahkan `server.setting` ke kolom permissions role Owner di sheet Roles.
+5. URL dan kode backend bisa diubah/disalin lagi lewat **Pengaturan > Server** (izin `server.setting`: Super Admin dan Owner). Database yang sudah terlanjur dibuat: tambahkan `server.setting` ke kolom permissions role Owner di sheet Roles.
+
+## Pengaturan dan jenis akun
+Menu **Pengaturan** (semua pengguna): Akun (profil, akses, ganti password), Tampilan (terang/gelap/otomatis), Struk (nama usaha, penutup, lebar 58/80 mm, cetak otomatis), Perangkat (antrean offline, sinkron). Bagian **Pengguna** muncul untuk izin `user.manage`, bagian **Server** untuk `server.setting`.
+
+Akun kasir dibuat di Pengaturan > Pengguna dengan dua tipe (peran tetap `Kasir`, pembedanya kolom `allowed_branch_ids`):
+- **Kasir Cabang**: `branch_id` dan `allowed_branch_ids` = satu cabang. Terkunci, pemilih cabang tidak muncul.
+- **Kasir Pusat**: `branch_id` = cabang utama, `allowed_branch_ids` = `*`. Bisa berpindah ke semua cabang.
+Admin Pusat tidak dapat membuat atau mengubah akun Super Admin, Owner, atau Admin Pusat; hanya Super Admin yang bisa. Setelah memperbarui `Code.gs`, tempel ulang ke Apps Script dan deploy versi baru agar aksi `getUsers`, `getBranches`, `changePassword` aktif.
 
 ## Aturan penting
 - Skrip klasik (bukan ES module), satu lingkup global. **Urutan `<script>` di `index.html` menentukan segalanya**: `core` dulu, `views`, `features`, `main.js` terakhir.
-- Halaman baru: buat `js/views/nama.js` berisi fungsi halaman, tambahkan ke daftar tab di `js/core/nav.js` dan `<script>` di `index.html`.
+- Halaman baru: buat `js/views/nama.js` berisi fungsi halaman, tambahkan ke `TABS` dan peta fungsi di `js/core/nav.js` dan `<script>` di `index.html`. Pakai `toast`, `ask`, `sure`, `empty`, `skel` dari `ui.js`, bukan `alert/prompt/confirm`.
 - Setelah mengubah `backend/Code.gs`: `python3 tools/sync-gas.py`, tempel ulang ke Apps Script, lalu Deploy > Kelola deployment > versi baru. `Code.gs` tidak boleh berisi backtick, `${`, atau backslash.
 - Semua izin divalidasi di backend (`ACT` di `Code.gs`). Token sesi hanya di `sessionStorage`, antrean offline dan cache produk di IndexedDB.
 - Jalankan `node tools/smoke.js` setelah setiap perubahan.
