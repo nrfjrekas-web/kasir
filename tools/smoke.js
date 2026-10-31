@@ -68,6 +68,24 @@ T(adm,'saveUser',{username:'own',password:'rahasia123',full_name:'Owner',role_id
 const ow=T('','login',{username:'own',password:'rahasia123'});
 ok('Owner boleh atur server, kasir tidak',ow.user.perms.includes('server.setting')&&!T(ks,'me',{}).user.perms.includes('server.setting'));
 ok('token tanpa sesi ditolak',fails('palsu','getProducts',{},'SESI_HABIS'));
+// ---------- Akun kasir cabang vs pusat, pengguna, ganti password ----------
+const hq=T(adm,'getBranches',{}).find(b=>b.is_main);ok('getBranches menandai cabang utama (pusat)',!!hq&&hq.branch_id===B);
+T(adm,'saveUser',{username:'kpusat',password:'rahasia123',full_name:'Kasir Pusat',role_id:'R-KASIR',branch_id:B,allowed_branch_ids:'*'});
+const kp=T('','login',{username:'kpusat',password:'rahasia123'});
+ok('kasir pusat: akses semua cabang, kasir cabang: terkunci',kp.user.allowed==='*'&&T('','login',{username:'kasir1',password:'rahasia123'}).user.allowed===B);
+ok('kasir pusat bisa menjual',T(kp.token,'createTransaction',tx('E10',1)).grand_total===8000);
+const us=T(adm,'getUsers',{});ok('getUsers memuat akun dan tidak membocorkan hash password',us.length>=4&&!JSON.stringify(us).includes('password_hash'));
+ok('kasir tidak boleh kelola pengguna',fails(ks,'getUsers',{},'izin')&&fails(ks,'saveUser',{username:'x',password:'12345678',full_name:'X',role_id:'R-KASIR'},'izin'));
+T(adm,'saveUser',{username:'mgr',password:'rahasia123',full_name:'Admin Pusat',role_id:'R-ADMIN',branch_id:B,allowed_branch_ids:'*'});
+const am=T('','login',{username:'mgr',password:'rahasia123'}).token;
+ok('Admin Pusat boleh buat kasir, tidak boleh buat Super Admin/Owner',T(am,'saveUser',{username:'kasir2',password:'rahasia123',full_name:'K2',role_id:'R-KASIR',branch_id:B,allowed_branch_ids:B}).user_id&&fails(am,'saveUser',{username:'bos',password:'rahasia123',full_name:'B',role_id:'R-SUPER'},'role'));
+ok('Admin Pusat tidak boleh mengubah akun Owner',fails(am,'saveUser',{username:'own',full_name:'Owner',role_id:'R-KASIR'},'role'));
+ok('cabang tidak dikenal ditolak saat simpan akun',fails(adm,'saveUser',{username:'k9',password:'rahasia123',full_name:'K9',role_id:'R-KASIR',branch_id:'BR-NOPE'},'Cabang'));
+ok('ganti password: lama salah ditolak, baru terlalu pendek ditolak',fails(kp.token,'changePassword',{old_password:'salah',new_password:'barubaru123'},'lama')&&fails(kp.token,'changePassword',{old_password:'rahasia123',new_password:'pendek'},'minimal'));
+T(kp.token,'changePassword',{old_password:'rahasia123',new_password:'barubaru123'});
+ok('ganti password berlaku: lama gagal, baru berhasil',fails('','login',{username:'kpusat',password:'rahasia123'},'salah')&&!!T('','login',{username:'kpusat',password:'barubaru123'}).token);
+T(adm,'saveUser',{username:'kasir2',status:'inactive',full_name:'K2',role_id:'R-KASIR'});
+ok('akun nonaktif tidak bisa login',fails('','login',{username:'kasir2',password:'rahasia123'},'salah'));
 for(let i=0;i<5;i++)A('','login',{username:'kasir1',password:'x'});
 ok('login dibatasi setelah 5 kali salah',fails('','login',{username:'kasir1',password:'rahasia123'},'Terlalu banyak'));
 console.log(bad?'\n'+bad+' GAGAL':'\nSemua lulus');process.exit(bad?1:0);
