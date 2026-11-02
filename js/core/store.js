@@ -1,10 +1,13 @@
-/* Panggilan API ke Web App Apps Script, IndexedDB (antrean offline + cache produk) */
-async function call(a,p){let r;
- try{r=await(await fetch(S.api,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({token:S.tok,action:a,params:Object.assign({device_id:S.dev},p||{})})})).json()}
- catch(e){throw Object.assign(new Error('Tidak ada koneksi ke server'),{net:1})}
- if(!r.ok){if(r.error==='SESI_HABIS'){sessionStorage.t='';S.tok=''}throw new Error(r.error)}
- return r.data}
-const idb=new Promise(r=>{const q=indexedDB.open('kasirpro',1);q.onupgradeneeded=()=>{q.result.createObjectStore('q',{keyPath:'event_id'});q.result.createObjectStore('kv')};q.onsuccess=()=>r(q.result)});
-async function st(s,m,f){const d=await idb;return new Promise((ok,no)=>{const t=d.transaction(s,m),o=f(t.objectStore(s));t.oncomplete=()=>ok(o.result);t.onerror=()=>no(t.error)})}
-async function loadP(){try{S.P=await call('getProducts',{branch_id:S.br});await st('kv','readwrite',s=>s.put(S.P,'P'))}catch(e){S.P=(await st('kv','readonly',s=>s.get('P')))||[]}}
-async function pend(){return st('q','readonly',s=>s.getAll())}
+function load(){
+ let d=null;try{d=JSON.parse(ls.get(K))}catch(e){}
+ db=JSON.parse(JSON.stringify(SEED));
+ if(d)Object.keys(SEED).forEach(k=>{if(d[k]!==undefined)db[k]=Array.isArray(SEED[k])?d[k]:Object.assign({},SEED[k],d[k])});
+}
+function recalc(){
+ const a=db.TRX_KEUANGAN.map((r,i)=>[r,i]).sort((x,y)=>x[0].tanggal.localeCompare(y[0].tanggal)||x[1]-y[1]).map(x=>x[0]);
+ let s=0;a.forEach(r=>{s+=num(r.kas_masuk)-num(r.kas_keluar);r.saldo=s});db.TRX_KEUANGAN=a;
+}
+function commit(){recalc();if(!ls.set(K,JSON.stringify(db)))toast('Penyimpanan perangkat penuh. Kirim data ke Google Sheet lalu kurangi foto.','err');if(typeof syMark==='function')syMark()}
+function log(akt,det){const n=new Date();db.LOG_AKTIVITAS.push({waktu:today()+' '+n.toTimeString().slice(0,5),user:user.nama,aktivitas:akt,detail:det||''})}
+function toast(m,t){const e=$('toast');e.textContent=m;e.style.background=t==='err'?'#B91C1C':'#0F172A';e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,3200)}
+const img=f=>new Promise(res=>{if(!f)return res('');const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const s=Math.min(1,720/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.6))};i.onerror=()=>res('');i.src=r.result};r.readAsDataURL(f)});

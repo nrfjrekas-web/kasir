@@ -1,19 +1,26 @@
-/* Kerangka utama: sidebar (desktop) / tab bar bawah (Android), cabang, status, sinkron. Tab menurut izin */
-const TABS=[['pos','Kasir','cart','sale.create'],['prod','Produk','box','product.write'],['stok','Stok','layers'],['lap','Laporan','chart','report.view'],['set','Pengaturan','gear']];
-async function main(){const n=(await pend()).length,tabs=TABS.filter(t=>can(t[3]));
- if(!tabs.some(t=>t[0]===S.tab))S.tab=tabs[0][0];const cur=tabs.find(t=>t[0]===S.tab),on=navigator.onLine;
- const nav=c=>tabs.map(t=>`<button class="${c}${S.tab===t[0]?' on':''}" data-t="${t[0]}"${S.tab===t[0]?' aria-current="page"':''}>${ic(t[2],22)}<span>${t[1]}</span></button>`).join('');
- const br=S.B.length>1?`<label class="br">${ic('store',18)}<select id="br" aria-label="Cabang">${S.B.map(b=>`<option value="${E(b.branch_id)}"${b.branch_id===S.br?' selected':''}>${E(b.branch_name)}</option>`).join('')}</select></label>`
-  :`<span class="br lock" title="Akun terkunci di cabang ini">${ic('store',18)}<span>${E(brName())}</span></span>`;
- $('#app').innerHTML=`<div class="app"><aside class="side"><div class="brand"><span class="logo">${ic('store',22)}</span>KASIR PRO</div><nav>${nav('nv')}</nav>
-  <div class="me"><span class="av">${E(ini(S.u.full_name))}</span><div class="gr"><b>${E(S.u.full_name)}</b><span class="m">${E(tipe(S.u))}</span></div><button class="ib" id="lo" aria-label="Keluar" title="Keluar">${ic('logout',18)}</button></div></aside>
-  <div class="col"><header class="top"><h1>${cur[1]}</h1><div class="tools">${br}<span class="net ${on?'on':'off'}"><i></i>${on?'Online':'Offline'}</span>
-  <button class="sy" id="sy" aria-label="Sinkron">${ic('sync',18)}<span>Sinkron</span>${n?`<em>${n}</em>`:''}</button></div></header>
-  ${on?'':'<div class="ob" role="status">Mode offline: transaksi tunai disimpan di perangkat dan dikirim saat online.</div>'}<main id="v"></main></div>
-  <nav class="tabbar">${nav('tb')}</nav></div>`;
- if($('#br'))$('#br').onchange=async e=>{S.br=e.target.value;S.cart=[];await loadP();main()};
- $$('[data-t]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;main()});
- $('#lo').onclick=logout;$('#sy').onclick=()=>sync();
- const v=$('#v');v.className='';v.innerHTML=skel();
- try{await({pos,prod,stok,lap,set})[S.tab]()}catch(e){errView(e)}}
-async function logout(){try{await call('logout')}catch(e){}sessionStorage.t='';S.tok='';S.u=null;S.cart=[];login()}
+/* ===== NAVIGASI ===== */
+function back(){const t=$('bk').dataset.to;if(t)go(t)}
+function go(p){
+ const R=ROLES[user.role];if(!R.pages.includes(p)&&p!=='menu'&&!(/^set\d$/.test(p)&&R.pages.includes('setting'))&&!(p==='mingguan'&&R.pages.includes('laporan')))return;
+ if(KEEP)KEEP=false;else EDIT=null;
+ page=p;$('ttl').textContent=PG[p];$('view').dataset.p=p;
+ $('view').innerHTML=V[p]();if(A[p])A[p]();
+ const bt=/^set\d$/.test(p)?'setting':p==='mingguan'?'laporan':(!R.nav.includes(p)&&p!=='menu')?'menu':'';$('bk').hidden=!bt;$('bk').dataset.to=bt;
+ const items=R.nav.map(n=>`<button class="nv" onclick="go('${n}')" ${n===(p==='mingguan'?'laporan':p)?'aria-current="page"':''}>${ic(n)}<span>${NL[n]||PG[n]}</span></button>`);
+ if(R.pages.length>R.nav.length)items.push(`<button class="nv" onclick="go('menu')" ${!R.nav.includes(p)?'aria-current="page"':''}>${ic('menu')}<span>Menu</span></button>`);
+ $('nav').innerHTML=items.join('');sideBuild(p);scrollTo(0,0);
+}
+
+/* Sidebar desktop: semua halaman milik peran, tanpa perlu halaman Menu */
+function sideBuild(p){
+ const R=ROLES[user.role],cur=/^set\d$/.test(p)?'setting':p==='mingguan'?'laporan':p,sch=String(C().nama_sekolah||'').replace('UPTD Satuan Pendidikan ','');
+ $('side').innerHTML=`<div class="sd-brand"><b>SI-REVITAL LITE</b><span>${esc(sch)}</span></div><div class="sd-list">${R.pages.map(n=>`<button class="sd" onclick="go('${n}')" ${n===cur?'aria-current="page"':''}>${ic(n)}<span>${PG[n]}</span></button>`).join('')}</div><p class="sd-foot">Program Revitalisasi Satuan Pendidikan SD, Swakelola P2SP</p>`;
+}
+
+/* ===== KOMPONEN KECIL ===== */
+const F=(l,h,hint)=>`<label class="block mb-4"><span class="lb">${l}</span>${h}${hint?`<span class="hint">${hint}</span>`:''}</label>`;
+const matOpts=()=>db.DB_MATERIAL.map(m=>`<option value="${m.id_material}">${esc(m.nama_material)}</option>`).join('');
+const rabOpts=()=>db.DB_RAB.map(r=>`<option value="${r.id_rab}">${esc(r.uraian_pekerjaan)}</option>`).join('');
+const empty=(t,a)=>`<div class="py-8 text-center"><p class="mu">${t}</p>${a||''}</div>`;
+const H2=t=>`<h2 class="text-[17px] font-bold mt-6 mb-2">${t}</h2>`;
+const bar=(p,dk)=>`<div class="ruler ${dk?'dk':''}" role="img" aria-label="${fmt(p)} persen"><i style="width:${Math.min(100,p)}%"></i></div>`;
