@@ -1,95 +1,91 @@
-// Uji asap tanpa browser: node tools/smoke.js
-// Memuat semua <script> dari index.html di node:vm dengan DOM tiruan, lalu menguji alur dari nol.
-const vm=require('vm'),fs=require('fs');
-const mk=(extra={})=>{const t=Object.assign({style:{},dataset:{},classList:{add(){},remove(){},toggle(){},contains:()=>false},children:[],value:'',hidden:false,innerHTML:'',textContent:'',files:[]},extra);
- return new Proxy(t,{get:(o,k)=>k in o?o[k]:(typeof k==='string'?(()=>mk()):undefined),set:(o,k,v)=>(o[k]=v,true)})};
-const els={},store={};
-const el=id=>els[id]||(els[id]=mk());
-class FormData{constructor(f){this.d=Object.entries(f.__data)}[Symbol.iterator](){return this.d[Symbol.iterator]()}}
-let sheet={CONFIG:{nama_sekolah:'SD Contoh',pin_sekretaris:'1111',pin_mandor:'2222',pin_kepsek:'3333',tgl_mulai:'2026-11-02',total_rab:0},DB_RAB:[],ver:4};
-const ctx={tailwind:{},console,setTimeout,clearTimeout,Promise,JSON,Math,Date,FormData,
- localStorage:{getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=v},removeItem:k=>{delete store[k]}},
- document:{getElementById:el,createElement:()=>mk(),body:mk(),addEventListener(){},querySelector:()=>mk(),querySelectorAll:()=>[]},
- navigator:{},scrollTo(){},print(){},fetch:async()=>({json:async()=>sheet})};
-ctx.window=ctx;vm.createContext(ctx);
-const run=c=>vm.runInContext(c,ctx);
-globalThis.els=els;globalThis.store=store;
-const root=require('path').resolve(__dirname,'..');
-const order=[...fs.readFileSync(root+'/index.html','utf8').matchAll(/<script src="(js\/[^"]+)"/g)].map(m=>m[1]);
-run(order.map(p=>fs.readFileSync(root+'/'+p,'utf8')).join('\n'));
-const ok=(n,c)=>console.log((c?'LULUS  ':'GAGAL  ')+n);
-const ev=(o)=>({preventDefault(){},target:{__data:o}});
-ctx.ev=ev;ctx.els=els;ctx.store=store;
-ok('pertama dibuka: tanpa PIN lokal, tampil papan PIN bila GAS_URL terisi, bila tidak pengaturan awal',run("!!GAS_URL")?(els.login.hidden===false&&els.setup.hidden===true):(els.setup.hidden===false&&els.setup.innerHTML.includes('Pengaturan awal')&&els.login.hidden===true));
-ok('tidak ada PIN/identitas bawaan',run("!C().pin_sekretaris&&!C().nama_sekolah&&!C().tgl_mulai"));
-run(`subSetup(ev({nama_sekolah:'SD Uji',tgl_mulai:'2026-11-02',pin_sekretaris:'1111',pin_mandor:'1111',pin_kepsek:'3333'}))`);
-ok('PIN kembar ditolak',els.toast.textContent.includes('berbeda')&&!run('C().pin_sekretaris'));
-run(`subSetup(ev({nama_sekolah:'SD Uji',tgl_mulai:'2026-11-02',pin_sekretaris:'12a4',pin_mandor:'2222',pin_kepsek:'3333'}))`);
-ok('PIN bukan 4 angka ditolak',els.toast.textContent.includes('4 angka'));
-run(`subSetup(ev({nama_sekolah:'',tgl_mulai:'2026-11-02',pin_sekretaris:'1111',pin_mandor:'2222',pin_kepsek:'3333'}))`);
-ok('nama sekolah kosong ditolak',els.toast.textContent.includes('Nama sekolah'));
-run(`subSetup(ev({nama_sekolah:'SD Uji',alamat:'Jl. A',kota_ttd:'Kota X',tgl_mulai:'2026-11-02',pin_sekretaris:'1111',pin_mandor:'2222',pin_kepsek:'3333'}))`);
-ok('setup valid: masuk sebagai Sekretaris, tersimpan',els.main.hidden===false&&els.setup.hidden===true&&run("user.role==='sek'&&C().pin_mandor==='2222'")&&!!store.sirevital_v2);
-ok('Beranda menampilkan panel Mulai di sini',run("V.dash().includes('Mulai di sini')"));
-run('boot()');ok('buka ulang: sesi pulih, tidak minta setup',els.main.hidden===false&&els.setup.hidden===true);
-run('logout()');ok('keluar: layar PIN tampil dengan nama sekolah',els.login.hidden===false&&els.lgSub.textContent.includes('SD Uji'));
-run("pressPin('9');pressPin('9');pressPin('9');pressPin('9')");ok('PIN salah ditolak',els.pinErr.textContent.includes('salah'));
-run("['2','2','2','2'].forEach(pressPin)");ok('PIN mandor masuk sebagai Mandor',run("user&&user.role==='mandor'"));
-run('logout()');run("['3','3','3','3'].forEach(pressPin)");ok('PIN kepsek masuk sebagai Kepala Sekolah',run("user&&user.role==='kepsek'"));
-run("user={role:'sek',nama:'Sekretaris'}");
-ok('sidebar desktop: Sekretaris melihat 9 halaman, halaman aktif ditandai',run("go('masuk')")===undefined&&(els.side.innerHTML.match(/class=\"sd\"/g)||[]).length===9&&/aria-current="page"><svg[^]*?<span>Barang masuk/.test(els.side.innerHTML)&&els.view.dataset.p==='masuk');
-ok('sidebar: Pengaturan bagian dan Laporan mingguan menyorot induknya',(run("go('set2')"),/aria-current="page"[^]*?<span>Pengaturan/.test(els.side.innerHTML))&&(run("go('mingguan')"),/aria-current="page"[^]*?<span>Laporan dan cetak/.test(els.side.innerHTML)));
-run("user={role:'mandor',nama:'Mandor'};go('progres')");ok('sidebar: Mandor hanya melihat Progres dan Absen',(els.side.innerHTML.match(/class=\"sd\"/g)||[]).length===2);
-run("user={role:'sek',nama:'Sekretaris'}");
-const r=run(`(()=>{const bad=[];const chk=(t,f)=>{try{const h=f();if(typeof h==='string'&&/NaN|undefined|Infinity|Invalid/.test(h))bad.push(t+' memuat NaN/undefined')}catch(e){bad.push(t+' -> '+e.message)}};
- Object.keys(V).forEach(k=>chk('V.'+k,V[k]));
- ['bku','stok','b50','b100','lpj'].forEach(k=>chk('cetak '+k,()=>{cetak(k);return $('print').innerHTML}));
- for(let w=1;w<=12;w++)chk('mg'+w,()=>{cetak('mg',w);return $('print').innerHTML});
- cetak('bku');const h=$('print').innerHTML;
- return{bad,kopTanpaBarisAtas:!h.includes('PEMERINTAH'),kota:h.includes('Kota X,'),nama:h.includes('SD Uji')}})()`);
-ok('semua halaman dan cetak bebas NaN/galat'+(r.bad.length?' '+JSON.stringify(r.bad):''),r.bad.length===0);
-ok('kop tanpa baris atas bila tidak diisi; kota tanda tangan dari pengaturan',r.kopTanpaBarisAtas&&r.kota&&r.nama);
-(async()=>{
- run('ask=async()=>true');
- await run('resetData()');
- ok('hapus data: kembali ke pengaturan awal, PIN lama tidak berlaku',(run("!!GAS_URL")?(els.login.hidden===false&&els.setup.hidden===true):(els.setup.hidden===false&&els.login.hidden===true))&&run("!C().pin_sekretaris")&&!store.sirevital_v2_u);
- el('sgas').value='https://x/exec';el('stok').value='tok';
- await run('pullAwal()');
- ok('perangkat baru: tarik dari Sheet lalu tampil layar PIN',els.login.hidden===false&&els.setup.hidden===true&&run("C().nama_sekolah==='SD Contoh'&&C().gas_url==='https://x/exec'&&C().gas_ver===4"));
- sheet={CONFIG:{nama_sekolah:'Tanpa PIN'},ver:1};run('resetData()');await new Promise(r=>setTimeout(r,5));
- el('sgas').value='https://x/exec';el('stok').value='tok';await run('pullAwal()');
- ok('Sheet tanpa PIN: ditolak dengan pesan jelas',els.toast.textContent.includes('belum memuat PIN'));
-})();
+// Uji asap tanpa browser dan tanpa Google: node tools/smoke.js
+// 1) Memuat semua <script> index.html di node:vm (DOM tiruan). 2) Menjalankan backend/Code.gs dengan Spreadsheet tiruan di memori.
+const vm=require('vm'),fs=require('fs'),path=require('path'),crypto=require('crypto');
+const root=path.resolve(__dirname,'..'),rd=p=>fs.readFileSync(path.join(root,p),'utf8');
+let bad=0;const ok=(n,c)=>{console.log((c?'LULUS  ':'GAGAL  ')+n);if(!c)bad++};
 
-// ===== Sinkron otomatis =====
-(async()=>{
- await new Promise(r=>setTimeout(r,50));
- const calls=[];
- run("db.CONFIG.gas_url='https://x/exec';db.CONFIG.gas_token='tok';db.CONFIG.gas_ver=4");
- ctx.fetch=async(u,o)=>{calls.push({u,o});return{json:async()=>o&&o.method==='POST'?{ok:true,ver:5,photos:[]}:{ver:5}}};
- run("SY.applying=false;ls.del(K+'_dirty');ls.del(K+'_auto')");
- run("commit()");
- ok('perubahan menandai data belum terkirim',run("syDirty()")===true);
- await run("syPush()");
- ok('kirim otomatis: POST, versi naik, penanda bersih',calls.some(c=>c.o&&c.o.method==='POST')&&run("db.CONFIG.gas_ver")===5&&run("syDirty()")===false);
- calls.length=0;await run("syPull()");
- ok('tarik otomatis dilewati bila versi Sheet sama',calls.length===1&&calls[0].u.includes('action=ver'));
- run("user={role:Object.keys(ROLES)[0],nama:'t'}");run("syToggle()");run("commit()");
- ok('matikan sinkron otomatis: perubahan tidak dikirim sendiri',run("ls.get(K+'_auto')")==='0'&&run("syOn()")===false);
-})();
+// ---------- Frontend ----------
+const mk=()=>new Proxy({style:{},dataset:{},innerHTML:'',value:'',textContent:'',hidden:false},{get:(o,k)=>k in o?o[k]:(typeof k==='string'?()=>mk():undefined),set:(o,k,v)=>(o[k]=v,true)});
+const els={},q=s=>els[s]||(els[s]=mk());
+const fe={console,setTimeout,Promise,JSON,Math,Date,Set,alert(){},sessionStorage:{},localStorage:{},crypto:{randomUUID:()=>crypto.randomUUID()},
+ indexedDB:{open:()=>({})},navigator:{onLine:true},addEventListener(){},print(){},scrollTo(){},document:{querySelector:q,querySelectorAll:()=>[]}};
+vm.createContext(fe);
+const order=[...rd('index.html').matchAll(/<script src="(js\/[^"]+)"/g)].map(m=>m[1]);
+ok('semua skrip di index.html ada',order.every(p=>fs.existsSync(path.join(root,p))));
+try{vm.runInContext(order.map(rd).join('\n'),fe);ok('semua skrip termuat tanpa error (tanpa deklarasi ganda)',true)}catch(e){console.log(e);ok('skrip termuat',false)}
+ok('belum tersambung: tampil layar Sambungkan, bukan login',String(els['#app'].innerHTML).includes('Sambungkan'));
+vm.runInContext("S.api='https://script.google.com/macros/s/x/exec';login()",fe);
+ok('layar login hanya username dan password (tanpa URL/kode Apps Script)',String(els['#app'].innerHTML).includes('Masuk')&&!/URL|Apps Script/.test(els['#app'].innerHTML));
+ok('hitung baris: 2x1000 - diskon 200 + pajak 10% = 1980',vm.runInContext("S.cart=[{p:{selling_price:1000,tax_type:'exclusive',tax_rate:10},qty:2,d:200}];tot()",fe)===1980);
 
-// ===== Login PIN perangkat baru (tanpa mengetik URL/token) =====
-(async()=>{
- await new Promise(r=>setTimeout(r,400));
- const reset=()=>run("ls.del(K);ls.del(K+'_u');ls.del(K+'_lp');db=JSON.parse(JSON.stringify(SEED));user=null;pin=''");
- const resp=o=>{ctx.fetch=async()=>({json:async()=>o})};
- reset();resp({error:'pin'});await run("loginRemote('9999')");
- ok('login perangkat baru: PIN salah ditolak server',els.pinErr.textContent.includes('PIN salah')&&run("user")===null);
- reset();resp({error:'lock'});await run("loginRemote('9999')");
- ok('login perangkat baru: terkunci setelah terlalu banyak PIN salah',els.pinErr.textContent.includes('15 menit'));
- reset();resp({error:'kosong'});await run("loginRemote('1111')");
- ok('login perangkat baru: Sheet kosong membuka pengaturan awal',els.setup.hidden===false&&els.login.hidden===true);
- reset();resp({role:'mandor',ver:7,CONFIG:{nama_sekolah:'SD Remote',pin_sekretaris:'1111',pin_mandor:'2222',pin_kepsek:'3333'},DB_RAB:[]});
- await run("loginRemote('2222')");
- ok('login perangkat baru: PIN benar mengambil data dan masuk sesuai peran',run("user.role")==='mandor'&&run("C().nama_sekolah")==='SD Remote'&&run("C().gas_ver")===7&&run("C().gas_token")===''&&run("myPin()")==='2222'&&els.main.hidden===false);
-})();
+// ---------- Backend ----------
+const gs=rd('backend/Code.gs');
+ok('Code.gs tanpa backtick, ${ atau backslash (syarat tombol salin)',!/`|\$\{|\\/.test(gs));
+ok('gas-code.js sinkron dengan Code.gs',rd('js/features/gas-code.js').includes(gs.trimEnd()));
+const mkSheet=()=>{const d=[];return{getLastRow:()=>d.length,getDataRange:()=>({getValues:()=>d.map(r=>r.slice())}),
+ getRange:(r,c)=>{const g={setValues:v=>{v.forEach((row,i)=>{d[r-1+i]=d[r-1+i]||[];row.forEach((x,j)=>d[r-1+i][c-1+j]=x)});return g},setFontWeight:()=>g};return g},setFrozenRows(){}}};
+const sh={},SS={getSheetByName:n=>sh[n]||null,insertSheet:n=>sh[n]=mkSheet(),deleteSheet(){}},cache={},props={};
+const be={console,JSON,Math,Date,Set,Object,Array,String,Number,SpreadsheetApp:{getActiveSpreadsheet:()=>SS,openById:()=>SS},
+ LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]==null?null:props[k],setProperty:(k,v)=>props[k]=v})},
+ CacheService:{getScriptCache:()=>({get:k=>cache[k]==null?null:cache[k],put:(k,v)=>cache[k]=v,remove:k=>delete cache[k]})},Session:{getScriptTimeZone:()=>'Asia/Jakarta'},Logger:{log(){}},
+ ContentService:{createTextOutput:s=>({s,setMimeType(){return this}}),MimeType:{JSON:1}},
+ Utilities:{getUuid:()=>crypto.randomUUID(),base64Encode:b=>Buffer.from(b).toString('base64'),computeDigest:(a,s)=>[...crypto.createHash('sha256').update(s).digest()],DigestAlgorithm:{SHA_256:1},
+  formatDate:(d,tz,f)=>{const i=new Date(d.getTime()+7*36e5).toISOString();return f==='yyyyMMdd'?i.slice(0,10).replace(/-/g,''):f==='yyMMdd'?i.slice(2,10).replace(/-/g,''):i.slice(0,10)}}};
+vm.createContext(be);vm.runInContext(gs,be);
+const A=(t,a,p)=>JSON.parse(be.api(t,a,p)),T=(t,a,p)=>{const r=A(t,a,p);if(!r.ok)throw new Error(r.error);return r.data};
+const fails=(t,a,p,m)=>{const r=A(t,a,p);return !r.ok&&(!m||r.error.includes(m))};
+const msg=be.initializeDatabase();ok('initializeDatabase membuat 24 sheet',Object.keys(sh).length===24);
+const adm=T('','login',{username:'admin',password:msg.split('password: ')[1].split(' ')[0]}).token;
+ok('login salah ditolak',fails('','login',{username:'admin',password:'salah'},'salah'));
+const B='BR-PUSAT';
+T(adm,'saveProduct',{sku:'A1',product_name:'Kopi',purchase_price:5000,selling_price:8000,min_stock:3,tax_type:'none',tax_rate:0,is_service:false});
+const pid=T(adm,'getProducts',{}).find(x=>x.sku==='A1').product_id,stock=()=>T(adm,'getProducts',{branch_id:B}).find(x=>x.product_id===pid).stock;
+ok('SKU ganda ditolak',fails(adm,'saveProduct',{sku:'A1',product_name:'Lain',purchase_price:1,selling_price:2},'SKU'));
+const po=T(adm,'createPurchase',{branch_id:B,items:[{product_id:pid,qty:10,unit_cost:5000}]});T(adm,'receivePurchase',{purchase_id:po.purchase_id,paid:50000});
+ok('penerimaan pembelian menambah stok jadi 10',stock()===10);
+ok('penerimaan ganda ditolak',fails(adm,'receivePurchase',{purchase_id:po.purchase_id},'sudah'));
+const tx=(id,qty,pay)=>({event_id:id,branch_id:B,items:[{product_id:pid,qty}],payments:[pay||{method:'cash',amount:qty*8000}]});
+const r1=T(adm,'createTransaction',Object.assign(tx('E1',2),{payments:[{method:'cash',amount:20000}]}));
+ok('transaksi: total 16000, kembalian 4000, stok 8',r1.grand_total===16000&&r1.change===4000&&stock()===8);
+ok('nomor invoice berformat unik',/^INV\/PST\/\d{8}\/0001$/.test(r1.invoice_number));
+ok('event_id sama tidak tercatat dua kali',T(adm,'createTransaction',tx('E1',2)).duplicate===true&&stock()===8);
+ok('stok kurang ditolak',fails(adm,'createTransaction',tx('E9',99),'STOK_KURANG'));
+ok('pembayaran kurang ditolak',fails(adm,'createTransaction',tx('E8',1,{method:'cash',amount:1000}),'kurang'));
+ok('non-tunai tanpa referensi ditolak',fails(adm,'createTransaction',tx('E7',1,{method:'qris',amount:8000}),'referensi'));
+const sy=T(adm,'syncOfflineTransactions',{events:[tx('E2',1),tx('E3',1,{method:'qris',amount:8000,ref:'X'}),tx('E4',50)]});
+ok('sinkron: tunai berhasil, non-tunai offline gagal, stok kurang jadi konflik',sy[0].status==='done'&&sy[1].status==='gagal'&&sy[2].status==='konflik'&&stock()===7);
+let rp=T(adm,'getReport',{});ok('laporan: 2 transaksi, omzet 24000, laba kotor 9000',rp.count===2&&rp.omzet===24000&&rp.gross_profit===9000);
+T(adm,'cancelTransaction',{transaction_id:r1.transaction_id,reason:'uji'});
+rp=T(adm,'getReport',{});ok('void mengembalikan stok (9) dan keluar dari laporan',stock()===9&&rp.count===1);
+ok('void tanpa alasan ditolak',fails(adm,'cancelTransaction',{transaction_id:r1.transaction_id},'Alasan'));
+ok('audit log terisi',T(adm,'getAuditLogs',{}).length>5);
+T(adm,'saveUser',{username:'kasir1',password:'rahasia123',full_name:'Kasir Satu',role_id:'R-KASIR',branch_id:B,allowed_branch_ids:B});
+const ks=T('','login',{username:'kasir1',password:'rahasia123'}).token;
+ok('kasir tidak boleh mengubah produk/laporan',fails(ks,'saveProduct',{sku:'Z',product_name:'Z',purchase_price:1,selling_price:2},'izin')&&fails(ks,'getReport',{},'izin'));
+ok('kasir ditolak di cabang yang tidak diizinkan',fails(ks,'createTransaction',Object.assign(tx('E5',1),{branch_id:'BR-X'}),'cabang'));
+ok('kasir bisa menjual di cabangnya',T(ks,'createTransaction',tx('E6',1)).grand_total===8000);
+T(adm,'saveUser',{username:'own',password:'rahasia123',full_name:'Owner',role_id:'R-OWNER',branch_id:B,allowed_branch_ids:'*'});
+const ow=T('','login',{username:'own',password:'rahasia123'});
+ok('Owner boleh atur server, kasir tidak',ow.user.perms.includes('server.setting')&&!T(ks,'me',{}).user.perms.includes('server.setting'));
+ok('token tanpa sesi ditolak',fails('palsu','getProducts',{},'SESI_HABIS'));
+// ---------- Akun kasir cabang vs pusat, pengguna, ganti password ----------
+const hq=T(adm,'getBranches',{}).find(b=>b.is_main);ok('getBranches menandai cabang utama (pusat)',!!hq&&hq.branch_id===B);
+T(adm,'saveUser',{username:'kpusat',password:'rahasia123',full_name:'Kasir Pusat',role_id:'R-KASIR',branch_id:B,allowed_branch_ids:'*'});
+const kp=T('','login',{username:'kpusat',password:'rahasia123'});
+ok('kasir pusat: akses semua cabang, kasir cabang: terkunci',kp.user.allowed==='*'&&T('','login',{username:'kasir1',password:'rahasia123'}).user.allowed===B);
+ok('kasir pusat bisa menjual',T(kp.token,'createTransaction',tx('E10',1)).grand_total===8000);
+const us=T(adm,'getUsers',{});ok('getUsers memuat akun dan tidak membocorkan hash password',us.length>=4&&!JSON.stringify(us).includes('password_hash'));
+ok('kasir tidak boleh kelola pengguna',fails(ks,'getUsers',{},'izin')&&fails(ks,'saveUser',{username:'x',password:'12345678',full_name:'X',role_id:'R-KASIR'},'izin'));
+T(adm,'saveUser',{username:'mgr',password:'rahasia123',full_name:'Admin Pusat',role_id:'R-ADMIN',branch_id:B,allowed_branch_ids:'*'});
+const am=T('','login',{username:'mgr',password:'rahasia123'}).token;
+ok('Admin Pusat boleh buat kasir, tidak boleh buat Super Admin/Owner',T(am,'saveUser',{username:'kasir2',password:'rahasia123',full_name:'K2',role_id:'R-KASIR',branch_id:B,allowed_branch_ids:B}).user_id&&fails(am,'saveUser',{username:'bos',password:'rahasia123',full_name:'B',role_id:'R-SUPER'},'role'));
+ok('Admin Pusat tidak boleh mengubah akun Owner',fails(am,'saveUser',{username:'own',full_name:'Owner',role_id:'R-KASIR'},'role'));
+ok('cabang tidak dikenal ditolak saat simpan akun',fails(adm,'saveUser',{username:'k9',password:'rahasia123',full_name:'K9',role_id:'R-KASIR',branch_id:'BR-NOPE'},'Cabang'));
+ok('ganti password: lama salah ditolak, baru terlalu pendek ditolak',fails(kp.token,'changePassword',{old_password:'salah',new_password:'barubaru123'},'lama')&&fails(kp.token,'changePassword',{old_password:'rahasia123',new_password:'pendek'},'minimal'));
+T(kp.token,'changePassword',{old_password:'rahasia123',new_password:'barubaru123'});
+ok('ganti password berlaku: lama gagal, baru berhasil',fails('','login',{username:'kpusat',password:'rahasia123'},'salah')&&!!T('','login',{username:'kpusat',password:'barubaru123'}).token);
+T(adm,'saveUser',{username:'kasir2',status:'inactive',full_name:'K2',role_id:'R-KASIR'});
+ok('akun nonaktif tidak bisa login',fails('','login',{username:'kasir2',password:'rahasia123'},'salah'));
+for(let i=0;i<5;i++)A('','login',{username:'kasir1',password:'x'});
+ok('login dibatasi setelah 5 kali salah',fails('','login',{username:'kasir1',password:'rahasia123'},'Terlalu banyak'));
+console.log(bad?'\n'+bad+' GAGAL':'\nSemua lulus');process.exit(bad?1:0);

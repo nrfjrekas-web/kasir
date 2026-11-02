@@ -1,47 +1,42 @@
-# SI-REVITAL LITE (SDN Klompangan 01)
+# KASIR PRO
 
-Aplikasi statis tanpa proses build. Unggah seluruh folder ini ke hosting statis (Cloudflare Pages, Netlify, GitHub Pages) atau buka `index.html` langsung.
+POS multi-cabang. Frontend statis tanpa proses build, database Google Spreadsheet, backend Google Apps Script (API JSON). Unggah folder ini ke hosting statis (Cloudflare Pages, Netlify, GitHub Pages) atau buka `index.html` langsung.
 
 ## Struktur
 ```
 index.html            markup + urutan pemuatan skrip
-css/style.css         seluruh gaya (palet Navy/Emerald/Slate)
-js/tailwind-config.js konfigurasi Tailwind (dimuat tepat setelah CDN)
-js/core/              config (SEED data awal), util (helper, hitung), store (load/commit/toast),
-                      auth (PIN, peran, menu per peran), nav (go/back, komponen kecil)
-js/views/             satu berkas per halaman: home (Beranda+Menu), masuk, keluar, stok,
-                      progres, absen, kas, laporan, pengaturan
-js/features/          sync (kirim/tarik Sheet), setup (pengaturan awal, hapus data), edit (ubah/hapus), print (dokumen cetak),
-                      gas-code (salinan backend untuk tombol salin)
+css/style.css         seluruh gaya (termasuk cetak struk)
+js/core/              config (URL API), util (helper, pengaturan perangkat), ui (ikon, toast, dialog, keadaan kosong/galat),
+                      store (panggilan API, IndexedDB), auth (izin, jenis akun, login, boot), nav (sidebar/tab bar menurut izin)
+js/views/             satu berkas per halaman: pos, produk, stok, laporan, setelan (Pengaturan)
+js/features/          print (struk), sync (antrean offline, salin kode), gas-code (salinan backend)
 js/main.js            start aplikasi
-backend/Code.gs       backend Google Apps Script
+backend/Code.gs       backend Apps Script (24 sheet, auth, stok, transaksi, pembelian, laporan, sinkron)
 tools/sync-gas.py     salin backend/Code.gs ke js/features/gas-code.js
-tools/smoke.js        uji asap tanpa browser: node tools/smoke.js
+tools/smoke.js        uji asap tanpa browser/Google: node tools/smoke.js
 ```
 
+## Pasang
+1. Spreadsheet kosong > Extensions > Apps Script, tempel isi `backend/Code.gs` (atau tombol "Salin kode Apps Script" di layar Sambungkan / tab Server).
+2. Set zona waktu proyek `Asia/Jakarta`. Jalankan `initializeDatabase` sekali; username `admin` dan password awal ada di log eksekusi. Segera ganti.
+3. Deploy > Aplikasi web: jalankan sebagai Saya, akses Siapa saja. Salin URL `/exec`.
+4. Pemilik mengisi `API_URL` di `js/core/config.js` dengan URL `/exec`, lalu mengunggah aplikasi. Semua perangkat langsung tersambung dan layar login hanya meminta username dan password. Alternatif: biarkan `API_URL` kosong; saat pertama dibuka perangkat menampilkan layar "Sambungkan ke server" untuk diisi pemilik sekali per perangkat.
+5. URL dan kode backend bisa diubah/disalin lagi lewat **Pengaturan > Server** (izin `server.setting`: Super Admin dan Owner). Database yang sudah terlanjur dibuat: tambahkan `server.setting` ke kolom permissions role Owner di sheet Roles.
+
+## Pengaturan dan jenis akun
+Menu **Pengaturan** (semua pengguna): Akun (profil, akses, ganti password), Tampilan (terang/gelap/otomatis), Struk (nama usaha, penutup, lebar 58/80 mm, cetak otomatis), Perangkat (antrean offline, sinkron). Bagian **Pengguna** muncul untuk izin `user.manage`, bagian **Server** untuk `server.setting`.
+
+Akun kasir dibuat di Pengaturan > Pengguna dengan dua tipe (peran tetap `Kasir`, pembedanya kolom `allowed_branch_ids`):
+- **Kasir Cabang**: `branch_id` dan `allowed_branch_ids` = satu cabang. Terkunci, pemilih cabang tidak muncul.
+- **Kasir Pusat**: `branch_id` = cabang utama, `allowed_branch_ids` = `*`. Bisa berpindah ke semua cabang.
+Admin Pusat tidak dapat membuat atau mengubah akun Super Admin, Owner, atau Admin Pusat; hanya Super Admin yang bisa. Setelah memperbarui `Code.gs`, tempel ulang ke Apps Script dan deploy versi baru agar aksi `getUsers`, `getBranches`, `changePassword` aktif.
+
 ## Aturan penting
-- Skrip klasik (bukan ES module) karena tombol memakai `onclick="fungsi()"`. Semua berkas berbagi satu lingkup global.
-- **Urutan di `index.html` menentukan segalanya.** `core` harus lebih dulu; `views/home.js` mendefinisikan `V` dan `A` sehingga harus sebelum view lain; `main.js` paling akhir.
-- Halaman baru: buat `js/views/nama.js` berisi `V.nama=()=>...`, tambahkan ke `PG`/`NL`/`ROLES` di `core/auth.js`, lalu daftarkan `<script>` di `index.html`.
-- Setelah mengubah `backend/Code.gs`, jalankan `python3 tools/sync-gas.py`. Code.gs tidak boleh berisi backtick, `${`, atau backslash.
-- Penyimpanan: localStorage kunci `sirevital_v2`; sesi peran `sirevital_v2_u`.
+- Skrip klasik (bukan ES module), satu lingkup global. **Urutan `<script>` di `index.html` menentukan segalanya**: `core` dulu, `views`, `features`, `main.js` terakhir.
+- Halaman baru: buat `js/views/nama.js` berisi fungsi halaman, tambahkan ke `TABS` dan peta fungsi di `js/core/nav.js` dan `<script>` di `index.html`. Pakai `toast`, `ask`, `sure`, `empty`, `skel` dari `ui.js`, bukan `alert/prompt/confirm`.
+- Setelah mengubah `backend/Code.gs`: `python3 tools/sync-gas.py`, tempel ulang ke Apps Script, lalu Deploy > Kelola deployment > versi baru. `Code.gs` tidak boleh berisi backtick, `${`, atau backslash.
+- Semua izin divalidasi di backend (`ACT` di `Code.gs`). Token sesi hanya di `sessionStorage`, antrean offline dan cache produk di IndexedDB.
+- Jalankan `node tools/smoke.js` setelah setiap perubahan.
 
-## Tampilan desktop
-Mulai lebar 1024 px (`@media (min-width:1024px)` di akhir `css/style.css`), tampilan berubah; di bawah itu tetap mobile-first 480 px seperti semula.
-- Sidebar kiri (`#side`, dibangun `sideBuild()` di `core/nav.js`) memuat semua halaman milik peran, jadi halaman Menu dan navbar bawah tidak dipakai.
-- Atribut `data-p` di `#view` menandai halaman aktif; CSS memakainya untuk tata letak: isian di kiri, riwayat di kanan (Masuk, Keluar, Progres, Absen, Kas), dua kolom (Beranda, Laporan), satu kolom terbatas (Pengaturan, Stok).
-- Layar PIN terbagi dua dengan panel merek, dan PIN bisa diketik dari papan tombol.
-- Menambah halaman baru: cukup daftarkan seperti biasa; bila ingin tata letak khusus desktop, tambahkan aturan `#view[data-p=nama]` di blok desktop.
-
-## Data awal
-Aplikasi mulai benar-benar kosong: tidak ada identitas sekolah, pejabat, PIN, RAB, material, maupun pekerja bawaan. Saat pertama dibuka (belum ada PIN) tampil layar **Pengaturan awal**: identitas sekolah, baris atas kop dan kota tanda tangan, tahun anggaran, tanggal mulai (wajib), nama pejabat (boleh kosong), dan tiga PIN 4 angka yang berbeda. Perangkat baru dapat memilih "Ambil data dari Google Sheet" di layar yang sama. Setelah itu Beranda menampilkan panel "Mulai di sini" sampai RAB, material, dan pekerja terisi. Total RAB 0 berarti dihitung otomatis dari jumlah item RAB.
-
-
-## Login langsung dengan PIN (tanpa mengetik URL Apps Script)
-
-1. Pasang `backend/Code.gs` versi terbaru di Apps Script, deploy ulang sebagai versi baru.
-2. Buka `js/core/config.js`, isi `GAS_URL` dengan URL Web App (berakhiran `/exec`), lalu push dan deploy ulang.
-3. Dari perangkat utama, kirim data pertama kali lewat Pengaturan dengan kata sandi admin (TOKEN). Ini hanya sekali.
-4. Setelah itu perangkat mana pun cukup memasukkan PIN. Server memeriksa PIN, lalu mengirim data sesuai peran. Sinkron otomatis memakai PIN yang sama, tanpa token.
-
-Keamanan: URL Web App bersifat publik, tetapi data hanya dikirim bila PIN benar. Sepuluh PIN salah berturut-turut mengunci login PIN selama 15 menit. TOKEN admin tidak ditaruh di kode aplikasi.
+## Belum ada
+Transfer antar cabang, retur, pelanggan/piutang, supplier, pengeluaran, shift kasir, layar admin (pengguna, cabang, audit log), backup terjadwal, Service Worker/PWA, ekspor PDF/Excel, grafik.
