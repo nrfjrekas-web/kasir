@@ -6,4 +6,3 @@ async function sync(quiet){const q=await pend();if(!q.length){if(!quiet)toast('T
  catch(e){toast('Sinkron gagal: '+e.message,'err');if($('#sy'))$('#sy').disabled=false}}
 addEventListener('online',()=>{if(S.u)sync(true).then(main)});
 addEventListener('offline',()=>{if(S.u)main()});
-async function copyGas(){try{await navigator.clipboard.writeText(GAS);toast('Kode Apps Script disalin','ok')}catch(e){toast('Gagal menyalin kode','err')}}

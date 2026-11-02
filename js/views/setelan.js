@@ -1,6 +1,6 @@
-// ---- Pengaturan: Akun, Tampilan, Struk, Perangkat, Pengguna (user.manage), Server (server.setting) ----
-const SECS=[['akun','Akun','user'],['tampil','Tampilan','sun'],['struk','Struk','printer'],['dev','Perangkat','sync'],['user','Pengguna','users','user.manage'],['srv','Server','server','server.setting']];
-const SEC={akun:sAkun,tampil:sTampil,struk:sStruk,dev:sDev,user:sUser,srv:sSrv};
+// ---- Pengaturan: Akun, Tampilan, Struk, Perangkat, Pengguna (user.manage) ----
+const SECS=[['akun','Akun','user'],['tampil','Tampilan','sun'],['struk','Struk','printer'],['dev','Perangkat','sync'],['user','Pengguna','users','user.manage']];
+const SEC={akun:sAkun,tampil:sTampil,struk:sStruk,dev:sDev,user:sUser};
 async function set(){const secs=SECS.filter(s=>can(s[3]));if(!secs.some(s=>s[0]===S.st))S.st='akun';
  $('#v').innerHTML=`<div class="set"><nav class="snav" aria-label="Bagian pengaturan">${secs.map(s=>`<button data-s="${s[0]}" class="${S.st===s[0]?'on':''}">${ic(s[2],16)}${s[1]}</button>`).join('')}</nav><div id="sb"></div></div>`;
  $$('[data-s]').forEach(b=>b.onclick=()=>{S.st=b.dataset.s;set()});
@@ -59,8 +59,3 @@ async function sUser(){$('#sb').innerHTML=skel();const [L,BR]=await Promise.all(
   if(!p.password)delete p.password;
   try{await call('saveUser',p);toast(e?'Akun diperbarui':'Akun dibuat','ok');sUser()}catch(er){toast(er.message,'err')}};
  $('#nu').onclick=()=>form(null);$$('[data-u]').forEach(b=>b.onclick=()=>form(L.find(x=>x.user_id===b.dataset.u)))}
-
-function sSrv(){const fixed=!!API_URL;
- $('#sb').innerHTML=`<div class="c"><h3>Server</h3><div class="form" style="margin-top:12px"><label class="fl"><span>URL Web App Apps Script</span><input id="api" value="${E(S.api)}" ${fixed?'disabled':''} autocapitalize="off"></label>
- ${fixed?'<p class="m">URL diatur di js/core/config.js (API_URL) dan berlaku untuk semua perangkat.</p>':'<button class="p" id="sv">Simpan URL (perangkat ini)</button>'}<button id="cp">Salin kode Apps Script</button></div></div>`;
- $('#cp').onclick=copyGas;if(!fixed)$('#sv').onclick=()=>{const u=$('#api').value.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u))return toast('URL Web App tidak valid','err');S.api=localStorage.api=u;toast('Tersimpan','ok')}}

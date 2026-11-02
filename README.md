@@ -9,22 +9,20 @@ css/style.css         seluruh gaya (termasuk cetak struk)
 js/core/              config (URL API), util (helper, pengaturan perangkat), ui (ikon, toast, dialog, keadaan kosong/galat),
                       store (panggilan API, IndexedDB), auth (izin, jenis akun, login, boot), nav (sidebar/tab bar menurut izin)
 js/views/             satu berkas per halaman: pos, produk, stok, laporan, setelan (Pengaturan)
-js/features/          print (struk), sync (antrean offline, salin kode), gas-code (salinan backend)
+js/features/          print (struk), sync (antrean offline)
 js/main.js            start aplikasi
 backend/Code.gs       backend Apps Script (24 sheet, auth, stok, transaksi, pembelian, laporan, sinkron)
-tools/sync-gas.py     salin backend/Code.gs ke js/features/gas-code.js
 tools/smoke.js        uji asap tanpa browser/Google: node tools/smoke.js
 ```
 
 ## Pasang
-1. Spreadsheet kosong > Extensions > Apps Script, tempel isi `backend/Code.gs` (atau tombol "Salin kode Apps Script" di layar Sambungkan / tab Server).
-2. Set zona waktu proyek `Asia/Jakarta`. Jalankan `initializeDatabase` sekali; username `admin` dan password awal ada di log eksekusi. Segera ganti.
-3. Deploy > Aplikasi web: jalankan sebagai Saya, akses Siapa saja. Salin URL `/exec`.
-4. Pemilik mengisi `API_URL` di `js/core/config.js` dengan URL `/exec`, lalu mengunggah aplikasi. Semua perangkat langsung tersambung dan layar login hanya meminta username dan password. Alternatif: biarkan `API_URL` kosong; saat pertama dibuka perangkat menampilkan layar "Sambungkan ke server" untuk diisi pemilik sekali per perangkat.
-5. URL dan kode backend bisa diubah/disalin lagi lewat **Pengaturan > Server** (izin `server.setting`: Super Admin dan Owner). Database yang sudah terlanjur dibuat: tambahkan `server.setting` ke kolom permissions role Owner di sheet Roles.
+1. Pemilik (sekali saja): Spreadsheet kosong > Extensions > Apps Script, tempel isi `backend/Code.gs`, set zona waktu `Asia/Jakarta`, jalankan `initializeDatabase` (username `admin` dan password awal ada di log eksekusi; segera ganti).
+2. Deploy > Aplikasi web: jalankan sebagai Saya, akses Siapa saja. Salin URL `/exec`.
+3. Isi `API_URL` di `js/core/config.js` dengan URL tersebut, lalu unggah aplikasi.
+4. Selesai. Kasir dan admin hanya melihat layar login (username + password dari pemilik). Tidak ada lagi input URL atau kode Apps Script di aplikasi.
 
 ## Pengaturan dan jenis akun
-Menu **Pengaturan** (semua pengguna): Akun (profil, akses, ganti password), Tampilan (terang/gelap/otomatis), Struk (nama usaha, penutup, lebar 58/80 mm, cetak otomatis), Perangkat (antrean offline, sinkron). Bagian **Pengguna** muncul untuk izin `user.manage`, bagian **Server** untuk `server.setting`.
+Menu **Pengaturan** (semua pengguna): Akun (profil, akses, ganti password), Tampilan (terang/gelap/otomatis), Struk (nama usaha, penutup, lebar 58/80 mm, cetak otomatis), Perangkat (antrean offline, sinkron). Bagian **Pengguna** muncul untuk izin `user.manage`.
 
 Akun kasir dibuat di Pengaturan > Pengguna dengan dua tipe (peran tetap `Kasir`, pembedanya kolom `allowed_branch_ids`):
 - **Kasir Cabang**: `branch_id` dan `allowed_branch_ids` = satu cabang. Terkunci, pemilih cabang tidak muncul.
@@ -34,7 +32,7 @@ Admin Pusat tidak dapat membuat atau mengubah akun Super Admin, Owner, atau Admi
 ## Aturan penting
 - Skrip klasik (bukan ES module), satu lingkup global. **Urutan `<script>` di `index.html` menentukan segalanya**: `core` dulu, `views`, `features`, `main.js` terakhir.
 - Halaman baru: buat `js/views/nama.js` berisi fungsi halaman, tambahkan ke `TABS` dan peta fungsi di `js/core/nav.js` dan `<script>` di `index.html`. Pakai `toast`, `ask`, `sure`, `empty`, `skel` dari `ui.js`, bukan `alert/prompt/confirm`.
-- Setelah mengubah `backend/Code.gs`: `python3 tools/sync-gas.py`, tempel ulang ke Apps Script, lalu Deploy > Kelola deployment > versi baru. `Code.gs` tidak boleh berisi backtick, `${`, atau backslash.
+- Setelah mengubah `backend/Code.gs`: tempel ulang ke Apps Script, lalu Deploy > Kelola deployment > versi baru.
 - Semua izin divalidasi di backend (`ACT` di `Code.gs`). Token sesi hanya di `sessionStorage`, antrean offline dan cache produk di IndexedDB.
 - Jalankan `node tools/smoke.js` setelah setiap perubahan.
 

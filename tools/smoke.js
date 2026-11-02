@@ -13,15 +13,13 @@ vm.createContext(fe);
 const order=[...rd('index.html').matchAll(/<script src="(js\/[^"]+)"/g)].map(m=>m[1]);
 ok('semua skrip di index.html ada',order.every(p=>fs.existsSync(path.join(root,p))));
 try{vm.runInContext(order.map(rd).join('\n'),fe);ok('semua skrip termuat tanpa error (tanpa deklarasi ganda)',true)}catch(e){console.log(e);ok('skrip termuat',false)}
-ok('belum tersambung: tampil layar Sambungkan, bukan login',String(els['#app'].innerHTML).includes('Sambungkan'));
+ok('API_URL kosong: tampil pesan, tanpa formulir URL',String(els['#app'].innerHTML).includes('belum diatur')&&!/<input/.test(els['#app'].innerHTML));
 vm.runInContext("S.api='https://script.google.com/macros/s/x/exec';login()",fe);
 ok('layar login hanya username dan password (tanpa URL/kode Apps Script)',String(els['#app'].innerHTML).includes('Masuk')&&!/URL|Apps Script/.test(els['#app'].innerHTML));
 ok('hitung baris: 2x1000 - diskon 200 + pajak 10% = 1980',vm.runInContext("S.cart=[{p:{selling_price:1000,tax_type:'exclusive',tax_rate:10},qty:2,d:200}];tot()",fe)===1980);
 
 // ---------- Backend ----------
 const gs=rd('backend/Code.gs');
-ok('Code.gs tanpa backtick, ${ atau backslash (syarat tombol salin)',!/`|\$\{|\\/.test(gs));
-ok('gas-code.js sinkron dengan Code.gs',rd('js/features/gas-code.js').includes(gs.trimEnd()));
 const mkSheet=()=>{const d=[];return{getLastRow:()=>d.length,getDataRange:()=>({getValues:()=>d.map(r=>r.slice())}),
  getRange:(r,c)=>{const g={setValues:v=>{v.forEach((row,i)=>{d[r-1+i]=d[r-1+i]||[];row.forEach((x,j)=>d[r-1+i][c-1+j]=x)});return g},setFontWeight:()=>g};return g},setFrozenRows(){}}};
 const sh={},SS={getSheetByName:n=>sh[n]||null,insertSheet:n=>sh[n]=mkSheet(),deleteSheet(){}},cache={},props={};

@@ -107,3 +107,29 @@ main#v{padding:16px 16px calc(92px + env(safe-area-inset-bottom));max-width:1240
 /* Struk thermal: lebar 58mm = 48mm area cetak, 80mm = 72mm */
 @media print{body>*:not(#rc){display:none!important}#rc{display:block;width:72mm;font:12px/1.35 ui-monospace,monospace;color:#000;background:#fff}#rc[data-w="58"]{width:48mm}}
 #rc .rr{display:flex;justify-content:space-between;gap:8px}#rc hr{border:0;border-top:1px dashed #000}#rc .ct{text-align:center}
+
+/* ===== Polesan tampilan (joss) ===== */
+:root{--g:linear-gradient(135deg,#0fa37a,#0b6e4f 55%,#07503a);--ring:0 0 0 4px color-mix(in srgb,var(--p) 18%,transparent)}
+body{background:radial-gradient(900px 420px at 100% -10%,color-mix(in srgb,var(--p) 10%,transparent),transparent),var(--bg);letter-spacing:.005em}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes fl{50%{transform:translate(18px,-22px) scale(1.06)}}
+main#v>*,.auth-box{animation:up .35s cubic-bezier(.2,.7,.2,1) both}
+input,select{transition:border-color .15s,box-shadow .15s;background:var(--c2)}input:focus,select:focus{outline:0;box-shadow:var(--ring);background:var(--c)}
+button{transition:transform .12s,box-shadow .2s,background .15s,filter .15s}
+button.p{background:var(--g);border:0;box-shadow:0 6px 16px color-mix(in srgb,var(--p) 35%,transparent)}button.p:hover:not(:disabled){box-shadow:0 8px 22px color-mix(in srgb,var(--p) 45%,transparent);transform:translateY(-1px)}
+button.p.dng{background:var(--d);box-shadow:0 6px 16px color-mix(in srgb,var(--d) 30%,transparent)}
+.c{border-radius:18px;transition:box-shadow .2s,transform .2s}.c:hover{box-shadow:0 2px 4px rgba(16,24,32,.06),0 14px 34px rgba(16,24,32,.09)}
+.chip{backdrop-filter:blur(4px)}.logo{background:var(--g);box-shadow:0 6px 16px color-mix(in srgb,var(--p) 40%,transparent)}
+.top{border-bottom-color:transparent;box-shadow:0 1px 0 var(--b),0 8px 24px rgba(16,24,32,.04)}
+.tabbar{margin:0 10px calc(10px + env(safe-area-inset-bottom));left:0;right:0;padding:6px;border:1px solid var(--b);border-radius:22px;background:color-mix(in srgb,var(--c) 90%,transparent);backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(16,24,32,.16)}
+.tb{transition:color .15s}.tb.on svg{background:var(--g);color:#fff;box-shadow:0 4px 12px color-mix(in srgb,var(--p) 40%,transparent)}
+.kv .big{font-size:26px;font-weight:800;background:var(--g);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* Layar masuk */
+.auth{background:var(--bg)}
+.auth-hero{position:relative;overflow:hidden;background:var(--g)}
+.auth-hero .hero-in{position:relative;z-index:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.auth-hero .logo{background:#ffffff2e;box-shadow:inset 0 0 0 1px #ffffff40;backdrop-filter:blur(6px)}
+.orb{position:absolute;border-radius:50%;filter:blur(2px);animation:fl 9s ease-in-out infinite}.o1{width:260px;height:260px;right:-70px;top:-90px;background:radial-gradient(circle at 30% 30%,#ffffff40,#ffffff00 70%)}.o2{width:200px;height:200px;left:-60px;bottom:-110px;background:radial-gradient(circle at 60% 40%,#7dffd433,#7dffd400 70%);animation-delay:-4s}
+.feat{display:none;list-style:none;margin:0;padding:0;gap:10px;flex-wrap:wrap}.feat li{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:#ffffff1f;box-shadow:inset 0 0 0 1px #ffffff33;font-size:13px;font-weight:600}
+.auth-box{display:flex;flex-direction:column;gap:18px;width:100%}.auth-box h2{font-size:26px;font-weight:800}
+@media(max-width:899px){.auth-hero{padding-bottom:44px}.auth-card{margin-top:-22px;background:var(--bg);border-radius:26px 26px 0 0;max-width:none;position:relative;z-index:2}.auth-box{max-width:440px;margin:auto}}
+@media(min-width:900px){.auth-hero .hero-in{flex-direction:column;align-items:flex-start;gap:20px}.feat{display:flex}.auth-card{background:var(--bg)}.auth-box{max-width:380px;padding:32px;background:var(--c);border:1px solid var(--b);border-radius:24px;box-shadow:var(--sh)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
